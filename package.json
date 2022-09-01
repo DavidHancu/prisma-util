@@ -23,6 +23,10 @@
   ],
   "author": "DavidHancu",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DavidHancu/prisma-util.git"
+  },
   "dependencies": {
     "chalk": "^5.0.1",
     "commander": "^9.4.0",
