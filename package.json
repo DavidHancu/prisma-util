@@ -1,6 +1,6 @@
 {
   "name": "prisma-util",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Prisma Util is an easy to use tool that merges multiple Prisma schema files, allows extending of models, resolves naming conflicts both manually and automatically and provides easy access to Prisma commands and timing reports. It's mostly a plug-and-play replacement, with an easy confirguration file.",
   "main": "./dist/index.js",
   "bin": {

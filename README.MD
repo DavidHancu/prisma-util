@@ -2,8 +2,8 @@
 <div align="center">
   <h1>Prisma Util</h1>
   <a href="https://www.npmjs.com/package/prisma-util"><img src="https://img.shields.io/npm/dt/prisma-util" /></a>
-  <a href="https://github.com/DavidHancu/prisma-util/blob/main/CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" /></a>
-  <a href="https://github.com/DavidHancu/prisma-util/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/prisma-util" /></a>
+  <a href="https://github.com/DavidHancu/prisma-util/blob/main/CONTRIBUTING.MD"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" /></a>
+  <a href="https://github.com/DavidHancu/prisma-util/blob/main/LICENSE"><img src="https://img.shields.io/github/license/DavidHancu/prisma-util" /></a>
   <br />
   <br />
   <a href="#what-is-prisma-util">What is Prisma Util?</a>
@@ -43,6 +43,7 @@ The Prisma Util is built on top of Prisma, and as such all arguments and command
     4. [Resolving Conflicts](#resolving-conflicts)
     5. [Automatic Mapper & Experimental Features](#automatic-mapper--experimental-features)
     6. [Debugging and Common Errors](#debugging-and-common-errors)
+    7. [Polyfills](#polyfills)
 2. [Configuration](#configuration)
     1. [Include Files](#include-files)
     2. [Excluding Models](#excluding-models)
@@ -172,6 +173,47 @@ This error message appears when one of your models uses a relation from a model 
 Prisma Util didn't resolve your relations because you didn't specify them in the configuration file.
 
 **Fix: Enable `crossFileRelations` in your configuration file and fill in the `relations` object.**
+
+## Polyfills
+
+We use the term `polyfill` to describe a model that is only added to a file to satisfy an IDE extension for the purpose of creating relations. If you used a Visual Studio Code extension, you might be aware of the errors you get when you use an undefined model as a relation. To fix that, we've implemented polyfills using the `Automatic Mapper`.
+
+To create a polyfill, just make add an almost empty model:
+
+schema.prisma
+```prisma
+model Post {
+    id Int @Id @default(autoincrement())
+    authorId Int
+    author User @relation(fields: [authorId], references: [id])
+}
+
+model User {
+    id Int @Id @default(autoincrement())
+    name String @unique
+    posts Post[]
+}
+```
+
+test.prisma
+```prisma
+model Reply {
+    id Int @Id @default(autoincrement())
+    title String @unique
+    body String
+}
+```
+
+Configuration file
+```json
+{
+    "relations": {
+        "schema.prisma:User.posts": "test.prisma:Reply"
+    }
+}
+```
+
+In this example, Post is the polyfill model and it will be replaced by `test.prisma:Reply`.
 
 ## Configuration
 
@@ -341,4 +383,4 @@ If you want to see a new feature added to Prisma Util, please create an issue [h
 
 ### Contributing
 
-Refer to our [contribution guidelines](https://github.com/DavidHancu/prisma-util/blob/main/CONTRIBUTING.md) for information on how to contribute.
+Refer to our [contribution guidelines](https://github.com/DavidHancu/prisma-util/blob/main/CONTRIBUTING.MD) for information on how to contribute.
