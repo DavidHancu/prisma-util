@@ -35,16 +35,24 @@ export declare type Column = {
     type: string;
     constraints: string[];
 };
+/** Enum type for schemas. */
+export declare type Enum = {
+    name: string;
+    values: string[];
+};
 /**Action type for resolving conflicts. */
 export declare type Action = {
     type: "skip";
+    item: "enum" | "model";
 } | {
     type: "rename";
     newName: string;
+    item: "enum" | "model";
 } | {
     type: "remap";
     from: string;
     to: string;
+    item: "enum" | "model";
 };
 /** Small parser utility to resolve conflicts. */
 export default class PrismaParser {
@@ -76,6 +84,10 @@ export default class PrismaParser {
     remapper: {
         [fileModel: string]: string;
     };
+    /**Enums */
+    enums: {
+        [fileModel: string]: Enum;
+    };
     constructor(config: ConfigType, configPath: string);
     /** Load .prisma files from config and parse models.*/
     load(): Promise<this>;
@@ -87,8 +99,14 @@ export default class PrismaParser {
     };
     /** Returns all name conflicts.*/
     getConflicts(): {
-        1: string;
-        2: string;
+        1: {
+            name: string;
+            type: "model" | "enum";
+        };
+        2: {
+            name: string;
+            type: "model" | "enum";
+        };
     }[];
     /** Get models that will be removed by the mapper. */
     getShadowedModels(): string[];

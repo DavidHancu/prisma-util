@@ -1,4 +1,4 @@
-import PrismaParser, { ConfigType } from "./parser.js";
+import { ConfigType } from "./parser.js";
 import { Command } from "commander";
 /**Send commands to prisma. */
 export declare function usePrisma(commandString: string): Promise<void>;
@@ -6,8 +6,6 @@ export declare function usePrisma(commandString: string): Promise<void>;
 export declare function convertPathToLocal(p: string): string;
 /** Sub command helper */
 export declare function createSubCommand(command: Command, nameAndArgs: string): Command;
-/** Conflict questioner. */
-export declare function fixConflicts(parser: PrismaParser, iterationCount?: number): Promise<void>;
 /** Used to run commands with timings. */
 export declare function runPrismaCommand(command: string): Promise<void>;
 /** Create or read the config. */

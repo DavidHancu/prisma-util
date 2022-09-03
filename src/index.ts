@@ -799,7 +799,14 @@ async function fixConflicts(iterationCount = 0) {
         } else {
             if (iterationCount == 0)
                 conflict("Conflicts detected, please answer the questions below.", "\n");
-            const conflictNow = conflicts[0];
+            const conflictNow = {
+                1: conflicts[0][1].name,
+                2: conflicts[0][2].name
+            };
+            const conflictNowTypes = {
+                1: conflicts[0][1].type,
+                2: conflicts[0][2].type,
+            }
 
             // Both should be the same
             const referred1 = parser.getReferredRelations(conflictNow[1]);
@@ -820,7 +827,8 @@ async function fixConflicts(iterationCount = 0) {
                     parser.suggest(conflictNow[1], {
                         type: "remap",
                         from: `${ref.model}.${ref.column.name}`,
-                        to: res
+                        to: res,
+                        item: conflictNowTypes[1]
                     });
                     canMap[1] = conflictNow[1] == res;
                     canMap[2] = conflictNow[2] == res;
@@ -830,35 +838,47 @@ async function fixConflicts(iterationCount = 0) {
             // If there is another one, ask the user for help
             const canMapAny = canMap[1] || canMap[2];
             if (canMapAny) {
-                const mapper = canMap[1] ? conflictNow[1] : conflictNow[2];
-                const other = canMap[1] ? conflictNow[2] : conflictNow[1];
+                const mapper = canMap[1] ? {
+                    name: conflictNow[1],
+                    type: conflictNowTypes[1]
+                } : {
+                    name: conflictNow[2],
+                    type: conflictNowTypes[2]
+                };
+                const other = canMap[1] ? {
+                    name: conflictNow[2],
+                    type: conflictNowTypes[2]
+                } : {
+                    name: conflictNow[1],
+                    type: conflictNowTypes[1]
+                };
                 experimental(`The ${chalk.bold("Automatic Mapper")} can't process a conflict automatically.\n`, "\n");
                 const answers = await inquirer.prompt({
                     name: `resolver_${iterationCount}`,
                     type: 'list',
                     prefix: conflictTag,
-                    message: chalk.gray(`Review your schema, then choose an option to solve the conflict.\n\n${chalk.magenta(mapper)} is referenced in your configuration file as the replacement for another model.\nHowever, ${chalk.magenta(other)} has the same model name as the generated one would.\nPlease choose one of the options below.\n\n${chalk.gray("Your choice:")}`),
+                    message: chalk.gray(`Review your schema, then choose an option to solve the conflict.\n\n${chalk.magenta(`${mapper.name}${mapper.type == "enum" ? " (Enum)" : ""}`)} is referenced in your configuration file as the replacement for another model.\nHowever, ${chalk.magenta(`${other.name}${other.type == "enum" ? " (Enum)" : ""}`)} has the same model name as the generated one would.\nPlease choose one of the options below.\n\n${chalk.gray("Your choice:")}`),
                     choices: [
-                        `Skip ${chalk.magenta(other)}`,
-                        `Rename ${chalk.magenta(other)}`,
+                        `Skip ${chalk.magenta(`${other.name}${other.type == "enum" ? " (Enum)" : ""}`)}`,
+                        `Rename ${chalk.magenta(`${other.name}${other.type == "enum" ? " (Enum)" : ""}`)}`,
                     ],
                 });
                 const answer = answers[`resolver_${iterationCount}`].replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "");
                 switch (answer) {
-                    case `Skip ${other}`:
-                        parser.suggest(other, { type: "skip" })
+                    case `Skip ${other.name}${other.type == "enum" ? " (Enum)" : ""}`:
+                        parser.suggest(other.name, { type: "skip", item: other.type })
                         break;
-                    case `Rename ${other}`:
+                    case `Rename ${other.name}${other.type == "enum" ? " (Enum)" : ""}`:
                         const name1 = (await inquirer.prompt({
                             name: `resolver_rename_${iterationCount}`,
                             type: 'input',
                             prefix: conflictTag,
-                            message: chalk.gray(`What is the new name for ${chalk.magenta(other)}?`),
+                            message: chalk.gray(`What is the new name for ${chalk.magenta(`${other.name}${other.type == "enum" ? " (Enum)" : ""}`)}?`),
                         }))[`resolver_rename_${iterationCount}`];
 
-                        parser.suggest(other, {
+                        parser.suggest(other.name, {
                             type: "rename",
-                            newName: name1
+                            newName: name1, item: other.type
                         });
                         break;
                 }
@@ -867,54 +887,56 @@ async function fixConflicts(iterationCount = 0) {
             }
 
             // Show never be shown unless the json is parsed incorrectly
-            const warningText = canMap[1] && canMap[2] ? `${chalk.yellow("Warning: ")}Both ${chalk.magenta(conflictNow[1])} and ${chalk.magenta(conflictNow[2])} are mapping the same column.\n\n` : ""
+            const warningText = canMap[1] && canMap[2] ? `${chalk.yellow("Warning: ")}Both ${chalk.magenta(`${conflictNow[1]}${conflictNowTypes[1] == "enum" ? " (Enum)" : ""}`)} and ${chalk.magenta(`${conflictNow[2]}${conflictNowTypes[2] == "enum" ? " (Enum)" : ""}`)} are mapping the same column.\n\n` : ""
             console.log();
             const answers = await inquirer.prompt({
                 name: `resolver_${iterationCount}`,
                 type: 'list',
                 prefix: conflictTag,
-                message: chalk.gray(`Review your schema, then choose an option to solve the conflict.\n\nTwo models have the same name, please select an action.\n${chalk.magenta(conflictNow[1])} and ${chalk.magenta(conflictNow[2])}\n\n${warningText}${chalk.gray("Your choice:")}`),
+                message: chalk.gray(`Review your schema, then choose an option to solve the conflict.\n\nTwo models have the same name, please select an action.\n${chalk.magenta(`${conflictNow[1]}${conflictNowTypes[1] == "enum" ? " (Enum)" : ""}`)} and ${chalk.magenta(`${conflictNow[2]}${conflictNowTypes[2] == "enum" ? " (Enum)" : ""}`)}\n\n${warningText}${chalk.gray("Your choice:")}`),
                 choices: [
-                    `Skip ${chalk.magenta(conflictNow[1])}`,
-                    `Skip ${chalk.magenta(conflictNow[2])}`,
-                    `Rename ${chalk.magenta(conflictNow[1])}`,
-                    `Rename ${chalk.magenta(conflictNow[2])}`,
+                    `Skip ${chalk.magenta(`${conflictNow[1]}${conflictNowTypes[1] == "enum" ? " (Enum)" : ""}`)}`,
+                    `Skip ${chalk.magenta(`${conflictNow[2]}${conflictNowTypes[2] == "enum" ? " (Enum)" : ""}`)}`,
+                    `Rename ${chalk.magenta(`${conflictNow[1]}${conflictNowTypes[1] == "enum" ? " (Enum)" : ""}`)}`,
+                    `Rename ${chalk.magenta(`${conflictNow[2]}${conflictNowTypes[2] == "enum" ? " (Enum)" : ""}`)}`,
                 ],
             });
 
             // remove colors
             const answer = answers[`resolver_${iterationCount}`].replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "");
             switch (answer) {
-                case `Skip ${conflictNow[1]}`:
-                    parser.suggest(conflictNow[1], { type: "skip" })
+                case `Skip ${conflictNow[1]}${conflictNowTypes[1] == "enum" ? " (Enum)" : ""}`:
+                    parser.suggest(conflictNow[1], { type: "skip", item: conflictNowTypes[1] })
                     break;
-                case `Skip ${conflictNow[2]}`:
-                    parser.suggest(conflictNow[2], { type: "skip" })
+                case `Skip ${conflictNow[2]}${conflictNowTypes[2] == "enum" ? " (Enum)" : ""}`:
+                    parser.suggest(conflictNow[2], { type: "skip", item: conflictNowTypes[2] })
                     break;
-                case `Rename ${conflictNow[1]}`:
+                case `Rename ${conflictNow[1]}${conflictNowTypes[1] == "enum" ? " (Enum)" : ""}`:
                     const name1 = (await inquirer.prompt({
                         name: `resolver_rename_${iterationCount}`,
                         type: 'input',
                         prefix: conflictTag,
-                        message: chalk.gray(`What is the new name for ${chalk.magenta(conflictNow[1])}?`),
+                        message: chalk.gray(`What is the new name for ${chalk.magenta(`${conflictNow[1]}${conflictNowTypes[1] == "enum" ? " (Enum)" : ""}`)}?`),
                     }))[`resolver_rename_${iterationCount}`];
 
                     parser.suggest(conflictNow[1], {
                         type: "rename",
-                        newName: name1
+                        newName: name1, 
+                        item: conflictNowTypes[1]
                     })
                     break;
-                case `Rename ${conflictNow[2]}`:
+                case `Rename ${conflictNow[2]}${conflictNowTypes[2] == "enum" ? " (Enum)" : ""}`:
                     const name2 = (await inquirer.prompt({
                         name: `resolver_rename_${iterationCount}`,
                         type: 'input',
                         prefix: conflictTag,
-                        message: chalk.gray(`What is the new name for ${chalk.magenta(conflictNow[2])}?`),
+                        message: chalk.gray(`What is the new name for ${chalk.magenta(`${conflictNow[2]}${conflictNowTypes[2] == "enum" ? " (Enum)" : ""}`)}?`),
                     }))[`resolver_rename_${iterationCount}`];
 
                     parser.suggest(conflictNow[2], {
                         type: "rename",
-                        newName: name2
+                        newName: name2,
+                        item: conflictNowTypes[2]
                     })
                     break;
             }

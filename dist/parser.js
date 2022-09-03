@@ -13,6 +13,7 @@ export default class PrismaParser {
         this.modelColumns = {};
         this.solutions = [];
         this.remapper = {};
+        this.enums = {};
     }
     /**Get all the columns defined for the models loaded. */
     getModelColumns() {
@@ -79,6 +80,19 @@ export default class PrismaParser {
                 prefixText: prismaCLITag
             }).start();
             const regex = /^([mM][oO][dD][eE][lL]\s*([^\s]+)(\s*\{((?=.*\n)[^}]+)\}))/gms;
+            const enumRegex = /^([eE][nN][uU][mM]\s*([^\s]+)(\s*\{((?=.*\n)[^}]+)\}))/gms;
+            for (let enumsForFile; enumsForFile = enumRegex.exec(text);) {
+                const enumName = enumsForFile[2];
+                const enumBody = enumsForFile[4];
+                if (!this.config.excludeModels.includes(`${file}:${enumName}`)) {
+                    const enumElements = enumBody.split("\n").filter(line => line.trim()).map(line => line.trim());
+                    this.enums[`${file}:${enumName}`] = {
+                        name: enumName,
+                        values: enumElements
+                    };
+                    fileData[enumName] = enumElements.join("\n");
+                }
+            }
             for (let modelsForFile; modelsForFile = regex.exec(text);) {
                 const modelFull = modelsForFile[1];
                 const modelName = modelsForFile[2];
@@ -171,8 +185,14 @@ export default class PrismaParser {
             for (let i = 0; i < filesWithModel.length; i++) {
                 for (let j = i + 1; j < filesWithModel.length; j++) {
                     conflicts.push({
-                        "1": filesWithModel[i],
-                        "2": filesWithModel[j]
+                        "1": {
+                            name: filesWithModel[i],
+                            type: this.enums[filesWithModel[i]] ? "enum" : "model"
+                        },
+                        "2": {
+                            name: filesWithModel[j],
+                            type: this.enums[filesWithModel[j]] ? "enum" : "model"
+                        },
                     });
                 }
             }
@@ -213,10 +233,24 @@ export default class PrismaParser {
                     this.models[fileName] = object;
                     this.modelColumns = rest;
                 }
+                let _enum;
+                if (actionData.item == "enum") {
+                    const { [`${fileName}:${modelName}`]: _, ...object } = this.enums;
+                    this.enums = object;
+                    _enum = _;
+                }
                 if (actionData.type == "rename") {
-                    this.models[fileName][actionData.newName] = _;
-                    this.modelColumns[`${fileName}:${actionData.newName}`] = _columns;
-                    this.remap(`${fileName}:${modelName}`, `${fileName}:${actionData.newName}`);
+                    if (actionData.item == "enum") {
+                        if (_enum) {
+                            this.enums[`${fileName}:${actionData.newName}`] = _enum;
+                            this.models[fileName][actionData.newName] = _enum.values.join("\n");
+                        }
+                    }
+                    else {
+                        this.models[fileName][actionData.newName] = _;
+                        this.modelColumns[`${fileName}:${actionData.newName}`] = _columns;
+                        this.remap(`${fileName}:${modelName}`, `${fileName}:${actionData.newName}`);
+                    }
                 }
                 if (actionData.type == "remap") {
                     this.remapper[actionData.from] = actionData.to;
@@ -246,6 +280,8 @@ export default class PrismaParser {
     /** Get relations for model */
     getRelations(fileModel) {
         const columns = this.modelColumns[fileModel];
+        if (!columns)
+            return [];
         return columns.filter(column => column.constraints.some(constraint => constraint.startsWith("@relation")));
     }
     /** Get all relations referring to model name. */
@@ -255,7 +291,7 @@ export default class PrismaParser {
         const model = fileModel.split(":")[1];
         validModels.forEach((modelData) => {
             const [modelName, columns] = modelData;
-            if (columns.some(column => column.constraints.some((constraint) => constraint.startsWith("@relation")) && column.type == model)) {
+            if (columns && columns.some(column => column.constraints.some((constraint) => constraint.startsWith("@relation")) && column.type == model)) {
                 columns.filter(column => column.constraints.some((constraint) => constraint.startsWith("@relation")) && column.type == model).forEach(column => {
                     array.push({
                         model: modelName,
@@ -296,6 +332,8 @@ export default class PrismaParser {
         const extendedModels = this.getModelsExtended();
         for (const fileModelData of fileNameModels) {
             const [fileModel, columns] = fileModelData;
+            if (!columns)
+                continue;
             const [fileName, modelName] = fileModel.split(":");
             const modelHeader = `model ${modelName} {\n`;
             let modelBody = '';
@@ -308,6 +346,17 @@ export default class PrismaParser {
                 modelBody = modelBody.concat(`  ${column.name} ${column.type} ${column.constraints.join(" ")}\n`);
             });
             schema = schema.concat("\n\n", modelHeader, modelBody, "}");
+        }
+        const fileNameEnums = Object.entries(this.enums);
+        for (const fileEnumData of fileNameEnums) {
+            const [fileEnum, en] = fileEnumData;
+            const [fileName, enumName] = fileEnum.split(":");
+            const enumHeader = `enum ${enumName} {\n`;
+            let enumBody = '';
+            en.values.forEach((value) => {
+                enumBody = enumBody.concat(`  ${value}\n`);
+            });
+            schema = schema.concat("\n\n", enumHeader, enumBody, "}");
         }
         return schema;
     }
