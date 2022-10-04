@@ -4,9 +4,11 @@ import * as commander from 'commander';
 import { createConfig, runPrismaCommand } from "./utils.js";
 import MessageBuilder, { conflictTag, prismaCLITag, showIntro, successTag } from "./messages.js";
 import PrismaParser from "./parser.js";
-import { conflict, error, experimental, success } from "./logger.js";
+import { conflict, error, experimental, success, update } from "./logger.js";
 import ora from "ora";
 import inquirer from "inquirer";
+import { LIB_VERSION as current } from "./version.js";
+import axios from "axios";
 // Requires node 10
 const program = new commander.Command();
 // Initialize the parser to have it ready when the subcommand is used
@@ -27,6 +29,18 @@ program
 })
     // Add sub command hook for creating the config file and reading from it
     .hook('preSubcommand', async (command, actionCommand) => {
+    process.stdout.write(String.fromCharCode(27) + ']0;' + "Prisma Util" + String.fromCharCode(7));
+    // Check version before continuing.
+    try {
+        const latest = (await axios.get("https://registry.npmjs.com/prisma-util")).data["dist-tags"].latest;
+        if (current != latest) {
+            update(`There's an update available for Prisma Util! (current: v${current}, latest: v${latest})\nYou can see the changelog here: ${chalk.bold(`https://github.com/DavidHancu/prisma-util/blob/main/CHANGELOG.MD#v${latest.replace(/\./g, '')}`)}\n`, "\n");
+            process.exit(0);
+        }
+    }
+    catch (err) {
+        error("An error has occured while trying to check the CLI version.\n", "\n");
+    }
     const { config, H, previewFeature } = actionCommand.optsWithGlobals();
     const configData = await createConfig(config);
     // Don't load anything yet until we're sure that we need it
@@ -385,6 +399,9 @@ createSubCommand(migrate, "dev")
         prefixText: '',
         symbol: successTag
     });
+    const modifiedMigration = await parser.migrate(`migrate dev${options.name ? ` -n ${options.name}` : ""}${options.skipSeed ? " --skip-seed" : ""}${options.skipGenerate ? " --skip-generate" : ""} --schema ./node_modules/.bin/generated-schema.prisma${options.previewFeature ? " --preview-feature" : ""}`);
+    if (modifiedMigration && options.createOnly)
+        return;
     await runPrismaCommand(`migrate dev${options.name ? ` -n ${options.name}` : ""}${options.createOnly ? " --create-only" : ""}${options.skipSeed ? " --skip-seed" : ""}${options.skipGenerate ? " --skip-generate" : ""} --schema ./node_modules/.bin/generated-schema.prisma${options.previewFeature ? " --preview-feature" : ""}`);
 });
 createSubCommand(migrate, "reset")
@@ -665,7 +682,7 @@ program
 });
 // Add Prisma Util and Prisma flags to all commands.
 program.commands.forEach((cmd) => {
-    cmd.option("--config [config]", "Specify a different path for the Prisma Util config", "prisma-util.config.json")
+    cmd.option("--config [config]", "Specify a different path for the Prisma Util config", "prisma-util.config.mjs")
         .option("--help, -h", "Display this help message")
         .option("--preview-feature", "Run Preview Prisma commands");
 });

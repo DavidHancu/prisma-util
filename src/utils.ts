@@ -7,6 +7,8 @@ import { conflict, error, experimental, log, success } from './logger.js';
 import { Command } from "commander";
 import inquirer from "inquirer";
 import { conflictTag } from "./messages.js";
+import json5 from "json5";
+import { pathToFileURL } from "url";
 
 /** __dirname doesn't exist in type: module */
 const __dirname = process.cwd();
@@ -15,10 +17,12 @@ const __dirname = process.cwd();
 export function usePrisma(commandString: string) {
     return new Promise<void>((resolve) => {
         // Spawn a child process running the command.
-        child_process.spawn(`npx --yes prisma ${commandString}`, {
-            stdio: "inherit",
+        const proc = child_process.spawn(`npx --yes prisma ${commandString}`, {
+            stdio: 'inherit',
             shell: true
-        }).on("exit", (signal) => {
+        });
+
+        proc.on("exit", (signal) => {
             // Resolve the promise on exit
             resolve();
         });
@@ -43,10 +47,11 @@ export async function runPrismaCommand(command: string)
     const start = process.hrtime();
     log(`${chalk.gray(`prisma ${command}`)}\n`, "\n")
     // Run Prisma command and pipe io
-    await usePrisma(command);
+    const output = await usePrisma(command);
     const elapsed = process.hrtime(start)[1] / 1000000;
     // Print execution time and exit
-    log(`${chalk.gray("Command executed in")} ${chalk.blue(process.hrtime(start)[0] + "s ")}${chalk.gray("and ")}${chalk.blue(elapsed.toFixed(2) + "ms")}${chalk.gray(".")}`, "\n")
+    log(`${chalk.gray("Command executed in")} ${chalk.blue(process.hrtime(start)[0] + "s ")}${chalk.gray("and ")}${chalk.blue(elapsed.toFixed(2) + "ms")}${chalk.gray(".")}`, "\n");
+    return output;
 }
 
 /** Create or read the config. */
@@ -58,12 +63,19 @@ export async function createConfig(configPath: string) {
         baseSchema: "",
         crossFileRelations: false,
         relations: {},
-        extended: {}
+        extended: {},
+        codeSchemas: false,
+        codeGenerators: [],
+        pgtrgm: false,
+        ftsIndexes: {},
+        schema: "",
+        middleware: ""
     }
     try {
-        json = JSON.parse(await fs.readFile(path, "utf-8"));
+        json = (await import(pathToFileURL(path).toString())).default;
     } catch (err) {
-        await fs.writeFile(path, JSON.stringify(json, null, 4));
+        console.error(err);
+        await fs.writeFile(path, `export default ${json5.stringify(json, null, 4)};`);
     }
     return json;
 }

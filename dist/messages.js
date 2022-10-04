@@ -61,3 +61,4 @@ export const warningTag = chalk.black.bold.bgYellow(" WARNING ");
 export const conflictTag = chalk.black.bold.bgMagenta(" CONFLICT ");
 export const successTag = chalk.black.bold.bgGreen(" SUCCESS ");
 export const experimentalTag = chalk.black.bold.bgWhite(" EXPERIMENTAL ");
+export const updateTag = chalk.bold.black.bgCyan(" UPDATE ");

@@ -2,8 +2,10 @@ import chalk from "chalk";
 import createSpinner from "ora";
 import { warn, error, experimental } from "./logger.js";
 import { successTag, prismaCLITag } from "./messages.js";
-import { flatten, getSchema, endsWithAny, writeTempSchema } from "./utils.js";
+import { flatten, getSchema, endsWithAny, writeTempSchema, runPrismaCommand, convertPathToLocal } from "./utils.js";
 import pluralize from "pluralize";
+import * as fs from 'fs/promises';
+import path from "path";
 /** Small parser utility to resolve conflicts. */
 export default class PrismaParser {
     constructor(config, configPath) {
@@ -22,38 +24,82 @@ export default class PrismaParser {
     /** Load .prisma files from config and parse models.*/
     async load() {
         if (!this.config.baseSchema) {
-            error("The config file has been reset to include all of the properties and to fix error.");
+            error("The config file has been reset to include all of the properties and to fix errors.");
             process.exit(1);
         }
         if (!this.config.excludeModels) {
             this.config.excludeModels = [];
         }
+        let experimentalCount = 0;
         if (!this.config.includeFiles || this.config.includeFiles.length == 0) {
             warn("You didn't specify any included files in your config!\n", "\n");
             this.config.includeFiles = [];
         }
         if (this.config.crossFileRelations) {
             experimental("Cross-file relations are enabled.\n", "\n");
+            experimentalCount++;
             this.remapper = this.config.relations ? this.config.relations : {};
+        }
+        if (this.config.codeSchemas) {
+            experimental("Code-generated schemas are enabled.\n", experimentalCount == 0 ? "\n" : "");
+            experimentalCount++;
+        }
+        if (this.config.pgtrgm) {
+            experimental("pg_trgm support is enabled.\n", experimentalCount == 0 ? "\n" : "");
+            if (!this.config.middleware) {
+                error("You didn't set a middleware path in the configuration file.", "\n");
+                process.exit(1);
+            }
+            if (!this.config.schema) {
+                error("You didn't set a schema in the configuration file.", "\n");
+                process.exit(1);
+            }
+            experimentalCount++;
         }
         if (!this.config.extended)
             this.config.extended = {};
-        for (const file of [this.config.baseSchema, ...this.config.includeFiles]) {
-            const fileData = {};
+        const includeFiles = [this.config.baseSchema, ...this.config.includeFiles].map((val) => {
+            return {
+                type: "FILE",
+                data: val
+            };
+        });
+        for (let i = 0; i < this.config.codeGenerators.length; i++) {
+            const generator = this.config.codeGenerators[i];
             let spinner = createSpinner({
-                text: `${chalk.gray("Loading schema file from ")}${chalk.blue(file)}${chalk.gray("...")}`,
+                text: `${chalk.gray("Running code-schema generator ")}${chalk.blue(`#${i + 1}`)}${chalk.gray("...")}`,
                 prefixText: prismaCLITag
             }).start();
-            const text = await getSchema(file);
+            includeFiles.push({
+                type: "SCHEMA",
+                data: await generator,
+                additionalName: `#${i + 1}`
+            });
             spinner.stopAndPersist({
-                text: `${chalk.gray("Successfully loaded schema from ")}${chalk.blue(file)}${chalk.gray(".")}`,
+                text: `${chalk.gray("Successfully generated schema from generator ")}${chalk.blue(`#${i + 1}`)}${chalk.gray(".")}`,
+                prefixText: '',
+                symbol: successTag
+            });
+        }
+        for (const file of includeFiles) {
+            const fileData = {};
+            if (typeof file.data == "function")
+                file.data = await file.data();
+            const name = file.type == "SCHEMA" ? `codeSchemas${file.additionalName}` : file.data;
+            let spinner = createSpinner({
+                text: `${chalk.gray("Loading schema file from ")}${chalk.blue(name)}${chalk.gray("...")}`,
+                prefixText: prismaCLITag
+            }).start();
+            const text = file.type == "FILE" ? await getSchema(file.data) : file.data;
+            spinner.stopAndPersist({
+                text: `${chalk.gray("Successfully loaded schema from ")}${chalk.blue(name)}${chalk.gray(".")}`,
                 prefixText: '',
                 symbol: successTag
             });
             // This is the base schema, parse it to get the generator and datasource.
-            if (file == this.config.baseSchema) {
+            if (file.data == this.config.baseSchema) {
                 spinner = createSpinner({
-                    text: `${chalk.gray("Checking generator and datasource from ")}${chalk.blue(file)}${chalk.gray("...")}`,
+                    text: `${chalk.gray("Checking generator and datasource from ")}${chalk.blue(name)}${chalk.gray("...")}`,
                     prefixText: prismaCLITag
                 }).start();
                 const generatorRegex = /^([gG][eE][nN][eE][rR][aA][tT][oO][rR]\s*([^\s]+)(\s*\{((?=.*\n)[^}]+)\}))/gms;
@@ -68,7 +114,7 @@ export default class PrismaParser {
                     process.exit(1);
                 }
                 spinner.stopAndPersist({
-                    text: `${chalk.gray("Successfully loaded generators and datasource from ")}${chalk.blue(file)}${chalk.gray(".")}`,
+                    text: `${chalk.gray("Successfully loaded generators and datasource from ")}${chalk.blue(name)}${chalk.gray(".")}`,
                     prefixText: '',
                     symbol: successTag
                 });
@@ -76,7 +122,7 @@ export default class PrismaParser {
                 this.datasource = datasource[1];
             }
             spinner = createSpinner({
-                text: `${chalk.gray("Adding models from ")}${chalk.blue(file)}${chalk.gray("...")}`,
+                text: `${chalk.gray("Adding models from ")}${chalk.blue(name)}${chalk.gray("...")}`,
                 prefixText: prismaCLITag
             }).start();
             const regex = /^([mM][oO][dD][eE][lL]\s*([^\s]+)(\s*\{((?=.*\n)[^}]+)\}))/gms;
@@ -84,9 +130,9 @@ export default class PrismaParser {
             for (let enumsForFile; enumsForFile = enumRegex.exec(text);) {
                 const enumName = enumsForFile[2];
                 const enumBody = enumsForFile[4];
-                if (!this.config.excludeModels.includes(`${file}:${enumName}`)) {
+                if (!this.config.excludeModels.includes(`${name}:${enumName}`)) {
                     const enumElements = enumBody.split("\n").filter(line => line.trim()).map(line => line.trim());
-                    this.enums[`${file}:${enumName}`] = {
+                    this.enums[`${name}:${enumName}`] = {
                         name: enumName,
                         values: enumElements
                     };
@@ -98,10 +144,10 @@ export default class PrismaParser {
                 const modelName = modelsForFile[2];
                 const modelBody = modelsForFile[4];
                 // If the model isn't excluded, grab the columns and add it to the models
-                if (!this.config.excludeModels.includes(`${file}:${modelName}`)) {
+                if (!this.config.excludeModels.includes(`${name}:${modelName}`)) {
                     fileData[modelName] = modelFull;
                     const columns = modelBody.split(/[\r\n]+/).filter(line => line.trim()).map(line => line.trim());
-                    this.modelColumns[`${file}:${modelName}`] = columns.map(column => {
+                    this.modelColumns[`${name}:${modelName}`] = columns.map(column => {
                         const [name, type, ...constraints] = column.split(" ");
                         return {
                             name, type, constraints
@@ -110,10 +156,21 @@ export default class PrismaParser {
                 }
             }
             // Add the new models to this specific file
-            this.models[file] = fileData;
+            this.models[name] = fileData;
             spinner.stopAndPersist({
-                text: `${chalk.gray("Successfully added models from ")}${chalk.blue(file)}${chalk.gray(".")}`,
+                text: `${chalk.gray("Successfully added models from ")}${chalk.blue(name)}${chalk.gray(".")}`,
                 symbol: successTag
+            });
+        }
+        for (const fileModel of Object.keys(this.config.ftsIndexes)) {
+            this.modelColumns[fileModel].push({
+                name: "textSearch",
+                type: "Unsupported(\"TSVECTOR\")?",
+                constraints: []
+            }, {
+                name: "@@index([textSearch])",
+                type: "",
+                constraints: []
             });
         }
         return this;
@@ -121,6 +178,287 @@ export default class PrismaParser {
     /** Get a list of raw models.*/
     getModels() {
         return this.models;
+    }
+    /** Change migration to accomodate full-text search indexes. */
+    async migrate(command) {
+        if (!this.config.pgtrgm)
+            return false;
+        try {
+            await fs.mkdir(convertPathToLocal("./node_modules/.bin/migrations"));
+        }
+        catch (err) { }
+        const current = (await fs.readdir(convertPathToLocal("./node_modules/.bin/migrations"), {
+            withFileTypes: true
+        })).filter(entity => entity.isDirectory()).map(entity => entity.name);
+        await runPrismaCommand(`${command} --create-only`);
+        const after = (await fs.readdir(convertPathToLocal("./node_modules/.bin/migrations"), {
+            withFileTypes: true
+        })).filter(entity => entity.isDirectory()).map(entity => entity.name);
+        const difference = current
+            .filter(x => !after.includes(x))
+            .concat(after.filter(x => !current.includes(x)));
+        const detected = difference.length > 0 ? difference[0] : null;
+        if (detected) {
+            experimental(`Migration created successfully, detected: ${chalk.bold(detected)}.`, "\n");
+        }
+        else {
+            error("Prisma migration couldn't be detected automatically.", "\n");
+            process.exit(1);
+        }
+        const migrationPath = path.join(convertPathToLocal("./node_modules/.bin/migrations"), detected, "migration.sql");
+        let migration = await fs.readFile(migrationPath, "utf8");
+        /**
+         * Table Name: 1,
+         *
+         * Table Body: 2
+         */
+        const createTableRegex = /CREATE TABLE "(\S*)" \((.*?)\);/gms;
+        /**
+         * Table Name: 1,
+         *
+         * Column action: 2
+         */
+        const alterTableRegex = /ALTER TABLE "(\S*)" (.*?) COLUMN "textSearch" TSVECTOR;/gms;
+        const migrationTables = {};
+        const original = {};
+        const alteredTables = {};
+        for (let tables; tables = createTableRegex.exec(migration);) {
+            const tableName = tables[1];
+            const tableBody = tables[2];
+            if (!tableBody.includes(`"textSearch" TSVECTOR`))
+                continue;
+            const toReplace = `CREATE TABLE "${tableName}" (${tableBody});`;
+            migrationTables[tableName] = toReplace;
+            original[tableName] = toReplace;
+        }
+        for (let altered; altered = alterTableRegex.exec(migration);) {
+            const tableName = altered[1];
+            const action = altered[2];
+            alteredTables[tableName] = action;
+        }
+        for (const [fileModel, ftsIndex] of Object.entries(this.config.ftsIndexes)) {
+            const [file, model] = fileModel.split(":");
+            migration = migration.replace(`"${model}"("textSearch")`, `"${model}" USING ${ftsIndex.type} ("textSearch")`);
+            const current = migrationTables[model];
+            if (current) {
+                const toReplace = `TSVECTOR GENERATED ALWAYS AS (${ftsIndex.indexes.map(index => {
+                    return `setweight(to_tsvector('${index.language}', coalesce("${index.field}", '')), '${index.weight}')`;
+                }).join(" || ")}) STORED`;
+                migrationTables[model] = current.replace(/TSVECTOR/gms, toReplace);
+            }
+            const currentAltered = alteredTables[model];
+            if (currentAltered) {
+                const toReplace = `ALTER TABLE "${model}" ${currentAltered} COLUMN "textSearch" TSVECTOR GENERATED ALWAYS AS (${ftsIndex.indexes.map(index => {
+                    return `setweight(to_tsvector('${index.language}', coalesce("${index.field}", '')), '${index.weight}')`;
+                }).join(" || ")}) STORED`;
+                migration = migration.replace(`ALTER TABLE "${model}" ${currentAltered} COLUMN "textSearch" TSVECTOR`, toReplace);
+            }
+        }
+        for (const [table, body] of Object.entries(migrationTables)) {
+            migration = migration.replace(original[table], body);
+        }
+        const migrationText = `-- [EXPERIMENTAL] Prisma Util has generated the lines below to accomodate full-text search indexes.\n
+CREATE EXTENSION IF NOT EXISTS pg_trgm;\n
+-- [EXPERIMENTAL] The lines below are NOT generated by Prisma Util.\n
+${migration}`;
+        await fs.writeFile(migrationPath, migrationText);
+        experimental(`Migration ${chalk.bold(detected)} updated to accomodate full-text search indexes.`, "\n");
+        const modelMappings = Object.fromEntries(Object.entries(this.config.ftsIndexes).map(index => {
+            return [index[0], index[1].indexes.map(ind => ind.field)];
+        }));
+        const code = `import { Prisma, PrismaClient } from "@prisma/client";
+
+const ALLOWED_ACTIONS = ["findMany", "findFirst"];
+const MAPPED_COLUMNS_MODELS = {
+    ${Object.entries(modelMappings).map(entry => {
+            const split = entry[0].split(":");
+            return `"${split[split.length - 1]}": [${entry[1].map(en => `"${en}"`).join(", ")}]`;
+        }).join(",\n    ")}
+};
+const MAPPED_MODELS = [${Object.keys(modelMappings).map(key => {
+            const split = key.split(":");
+            return `"${split[split.length - 1]}"`;
+        }).join(", ")}];
+const JOINT_FILTERS = ["equals", "has", "not", "in", "notIn", "lt", "lte", "gt", "gte"]
+const INT_FILTERS = [...JOINT_FILTERS];
+const STRING_FILTERS = [...JOINT_FILTERS, "contains", "endsWith", "startsWith", "mode"];
+const SCALAR_FILTERS = ["equals", "hasEvery", "hasSome", "isEmpty"];
+const BLOCK_FILTERS = ["NOT", "OR", "AND"];
+const schema = "${this.config.schema}";
+
+const MAPPED_SYMBOLS: {
+    [data: string]: (first: any, second: any | any[], mode?: "default" | "insensitive") => Prisma.Sql
+} = {
+    isEmpty: (first: any, second: boolean, mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(second ? \`\${first} = '{}'\` : \`\${first} <> '{}'\`)}\`,
+    equals: (first: any, second: any | any[], mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(first)} = \${second}\`,
+    has: (first: any, second: any, mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(first)} @> \${[second]}\`,
+    hasEvery: (first: any, second: any[], mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(first)} @> \${second}\`,
+    hasSome: (first: any, second: any[], mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(first)} && \${second}\`,
+    not: (first: any, second: any, mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(first)} <> \${second}\`,
+    in: (first: any, second: any[], mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(first)} IN (\${Prisma.join(second)})\`,
+    notIn: (first: any, second: any[], mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(first)} NOT IN (\${Prisma.join(second)})\`,
+    lt: (first: any, second: any, mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(first)} < \${second}\`,
+    lte: (first: any, second: any, mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(first)} <= \${second}\`,
+    gt: (first: any, second: any, mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(first)} > \${second}\`,
+    gte: (first: any, second: any, mode: "default" | "insensitive" = "default") => Prisma.sql\`\${Prisma.raw(first)} >= \${second}\`,
+    contains: (first: any, second: any, mode: "default" | "insensitive" = "default") => mode == "default" ? Prisma.sql\`\${Prisma.raw(first)} LIKE \${second}\` : Prisma.sql\`\${Prisma.raw(first)} ILIKE \${\`%\${second}%\`}\`,
+    endsWith: (first: any, second: any, mode: "default" | "insensitive" = "default") => mode == "default" ? Prisma.sql\`\${Prisma.raw(first)} LIKE \${second}}\` : Prisma.sql\`\${Prisma.raw(first)} ILIKE \${\`\${second}%\`}\`,
+    startsWith: (first: any, second: any, mode: "default" | "insensitive" = "default") => mode == "default" ? Prisma.sql\`\${Prisma.raw(first)} LIKE \${second}\` : Prisma.sql\`\${Prisma.raw(first)} ILIKE \${\`%\${second}\`}\`
+}
+
+function check(object: [string, any], MAPPED_COLUMNS: string[]): boolean
+{
+    const [key, filter] = object;
+    if(BLOCK_FILTERS.includes(key))
+        return Object.entries(filter).some((val) => check(val, MAPPED_COLUMNS));
+    return typeof filter == "string" && MAPPED_COLUMNS.includes(key);
+}
+
+function flatten<T>(array: any[][]): T[] {
+    return array.reduce(function (flatArray, arrayToFlatten) {
+      return flatArray.concat(Array.isArray(arrayToFlatten) ? flatten(arrayToFlatten) : arrayToFlatten);
+    }, []);
+}
+
+const middleware = (prisma: PrismaClient) => async (params: Prisma.MiddlewareParams, next: (params: Prisma.MiddlewareParams) => Promise<any>) => {
+
+    if(!ALLOWED_ACTIONS.includes(params.action))
+        return next(params);
+
+    if(!params.model || !MAPPED_MODELS.includes(params.model))
+        return next(params);
+
+    const MAPPED_COLUMNS: string[] = (MAPPED_COLUMNS_MODELS as any)[params.model];
+    if(!Object.entries(params.args.where).some((val) => check(val, MAPPED_COLUMNS)))
+        return next(params);
+
+    const table: string = \`"\${schema}"."\${params.model}"\`;
+    const limit = params.action == "findFirst" ? 1 : params.args.take ? params.args.take : 0;
+    const offset = params.args.skip ? params.args.skip : 0;
+    const selectedColumns: (Prisma.Sql)[] | Prisma.Sql = params.args.select ? ([...new Set(Object.keys(params.args.where).map(key => [key, true]).concat(Object.entries(params.args.select)).map(data => {
+        return data[1] ? \`\${table}."\$\{data[0]}"\` : null;
+    }).filter(String))] as string[]).map(val => Prisma.raw(val)) : ((prisma as any)["_baseDmmf"]["typeAndModelMap"][params.model]["fields"].filter((item: any) => !item.relationName).map((field: any) => [field.name, true]).map((data: [string, boolean]) => {
+        return data[1] ? \`\${table}."\${data[0]}"\` : null;
+    })).map((val: string) => Prisma.raw(val));
+    const orderBy: [string, string] | null = params.args.orderBy ? Object.entries(params.args.orderBy)[0] as [string, string] : null;
+    const matches: {
+        [column: string]: string
+    } = {};
+    const cursor = params.args.cursor ? Object.entries(params.args.cursor).map(entry => [\`\${table}."\${entry[0]}"\`, entry[1]]).map((entry: any) => Prisma.sql\`\${Prisma.raw(entry[0])} > \${entry[1] as number}\`) : [];
+
+    function doFilter(root: any, obj: [string, unknown][], first: boolean, action?: string)
+    {
+        const object = Object.fromEntries(obj);
+        let and = object["AND"];
+        let or = object["OR"];
+        let not = object["NOT"];
+
+        const intFilters = 
+            flatten<Prisma.Sql>(obj
+                .filter(entry => Object.keys(entry[1] as object).some(key => INT_FILTERS.includes(key)))
+                .map(entry => [\`\${table}."\${entry[0]}"\`, entry[1]]).map((entry: any) => {
+                    const data = Object.entries(entry[1])
+                        .filter(en => (typeof en[1] == "number" || (Array.isArray(en[1]) && typeof (en[1] as any[])[0] == "number") && en[0] != "equals"))
+                        .map(en => {
+                            return MAPPED_SYMBOLS[en[0]].apply(root, [entry[0], en[1] as any]);
+                        });
+                    return data;
+                }));
+        
+        const baseIntFilters = 
+            flatten<Prisma.Sql>(obj
+                .map(entry => [\`\${table}."\${entry[0]}"\`, entry[1]])
+                .filter(entry => typeof entry[1] != "object")
+                .map((entry: any) => {
+                    const data = Object.entries(entry[1])
+                        .filter(en => (typeof en[1] == "number"))
+                        .map(en => {
+                            return MAPPED_SYMBOLS.equals.apply(root, [entry[0], en[1] as any]);
+                        });
+                    return data;
+                }));
+        const baseStringFilters = 
+            flatten<Prisma.Sql>(obj
+                .filter(entry => typeof entry[1] == "string")
+                .map((entry: any) => {                    
+                    if(MAPPED_COLUMNS.includes(entry[0]))
+                    {
+                        matches[entry[0]] = entry[1];
+                        return [Prisma.sql\`(\${Prisma.raw(entry[0])} % \${entry[1]})\`];
+                    }
+                    entry[0] = \`\${table}."\${entry[0]}"\`;
+                    return [MAPPED_SYMBOLS.equals.apply(root, [entry[0], entry[1] as any])];
+                }));
+        const stringFilters = 
+            flatten<Prisma.Sql>(obj
+                .filter(entry => Object.keys(entry[1] as object).some(key => STRING_FILTERS.includes(key)))
+                .map(entry => [\`\${table}."\${entry[0]}"\`, entry[1]])
+                .map((entry: any) => {
+                    const data = Object.entries(entry[1])
+                        .filter(en => en[0] != "mode" && typeof en[1] == "string" || (Array.isArray(en[1]) && typeof (en[1] as any[])[0] == "string" && en[0] != "equals"))
+                        .map(en => {
+                            return MAPPED_SYMBOLS[en[0]].apply(root, [entry[0], en[1] as any, entry[1].mode ? entry[1].mode : "default"]);
+                        });
+                    return data;
+                }));
+        const scalarFilters = 
+            flatten<Prisma.Sql>(obj
+                .filter(entry => Object.keys(entry[1] as object).some(key => SCALAR_FILTERS.includes(key)))
+                .map(entry => [\`\${table}."\${entry[0]}"\`, entry[1]])
+                .map((entry: any) => {
+                    const data = Object.entries(entry[1])
+                        .filter(en => (Array.isArray(en[1]) || typeof en[1] == "boolean" && en[0] == "isEmpty"))
+                        .map(en => {
+                            return MAPPED_SYMBOLS[en[0]].apply(root, [entry[0], en[1] as any]);
+                        });
+                    return data;
+                }));
+
+        const conditions: Prisma.Sql[] = 
+        [
+            ...(intFilters.length > 0 ? intFilters : []),
+            ...(stringFilters.length > 0 ? stringFilters : []),
+            ...(scalarFilters.length > 0 ? scalarFilters : []),
+            ...(baseIntFilters.length > 0 ? baseIntFilters : []),
+            ...(baseStringFilters.length > 0 ? baseStringFilters : []),
+        ];
+
+        let AND, OR, NOT;
+        if(and)
+            AND = doFilter(root, Object.entries(and as any), false, "AND");
+        if(or)
+            OR = doFilter(root, Object.entries(or as any), false, "OR");
+        if(not)
+            NOT = doFilter(root, Object.entries(not as any), false, "NOT");
+
+        const data: Prisma.Sql[] = 
+        [
+            ...(AND ? AND : []),
+            ...(OR ? OR : []),
+            ...(NOT ? NOT : []),
+            ...conditions
+        ]
+
+        if(action && data.length > 0)
+            return action == "NOT" ? [Prisma.sql\`(NOT (\${Prisma.join(data, \` AND \`)}))\`] : [Prisma.sql\`(\${Prisma.join(data, \` \${action} \`)})\`];
+        
+        return data.length > 0 ? [Prisma.join(data, " AND ")] : [];
+    }
+    const blockFilters = doFilter(this, Object.entries(params.args.where), true);
+
+    const conditions: Prisma.Sql[] = 
+    [
+        ...(cursor.length > 0 ? cursor : []),
+        ...(blockFilters.length > 0 ? blockFilters : []),
+    ];
+
+    return prisma.$queryRaw\`SELECT \${Array.isArray(selectedColumns) ? Prisma.join(selectedColumns) : selectedColumns}\${orderBy ? Prisma.sql\`, SIMILARITY(\${Prisma.raw(orderBy[0])}, \${matches[orderBy[0]]}) as ftsScore\` : Prisma.empty} FROM \${Prisma.raw(table)} WHERE (\${Prisma.join(conditions, " AND ")})\${orderBy ? Prisma.sql\` ORDER BY ftsScore \${Prisma.raw(orderBy[1].toUpperCase())}\` : Prisma.empty}\${limit > 0 ? Prisma.sql\` LIMIT \${limit}\` : Prisma.empty}\${offset > 0 ? Prisma.sql\` OFFSET \${offset}\` : Prisma.empty}\`;
+};
+
+export default middleware;`;
+        await fs.writeFile(convertPathToLocal(this.config.middleware), code);
+        experimental(`Wrote middleware to ${chalk.bold(this.config.middleware)}.`, "\n");
+        return true;
     }
     /** Returns all name conflicts.*/
     getConflicts() {
@@ -335,7 +673,7 @@ export default class PrismaParser {
             if (!columns)
                 continue;
             const [fileName, modelName] = fileModel.split(":");
-            const modelHeader = `model ${modelName} {\n`;
+            const modelHeader = `/// ${fileName}\nmodel ${modelName} {\n`;
             let modelBody = '';
             const columnsToUse = [
                 ...columns,
@@ -351,7 +689,7 @@ export default class PrismaParser {
         for (const fileEnumData of fileNameEnums) {
             const [fileEnum, en] = fileEnumData;
             const [fileName, enumName] = fileEnum.split(":");
-            const enumHeader = `enum ${enumName} {\n`;
+            const enumHeader = `/// ${fileName}\nenum ${enumName} {\n`;
             let enumBody = '';
             en.values.forEach((value) => {
                 enumBody = enumBody.concat(`  ${value}\n`);

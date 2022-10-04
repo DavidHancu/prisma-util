@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { errorTag, prismaCLITag, warningTag, conflictTag, successTag, experimentalTag } from "./messages.js";
+import { errorTag, prismaCLITag, warningTag, conflictTag, successTag, experimentalTag, updateTag } from "./messages.js";
 
 export function log(text: string, before?: string)
 {
@@ -9,6 +9,11 @@ export function log(text: string, before?: string)
 export function error(text: string, before?: string)
 {
     console.log(`${before ? before : ""}${errorTag} ${chalk.red(text)}`);
+}
+
+export function update(text: string, before?: string)
+{
+    console.log(`${before ? before : ""}${updateTag} ${chalk.cyan(text)}`);
 }
 
 export function warn(text: string, before?: string)

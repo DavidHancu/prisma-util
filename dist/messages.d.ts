@@ -16,3 +16,4 @@ export declare const warningTag: string;
 export declare const conflictTag: string;
 export declare const successTag: string;
 export declare const experimentalTag: string;
+export declare const updateTag: string;

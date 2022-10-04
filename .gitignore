@@ -3,3 +3,4 @@ node_modules
 .env
 *.prisma
 prisma-util.config.json
+prisma-util.config.mjs

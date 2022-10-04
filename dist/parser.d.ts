@@ -1,4 +1,4 @@
-/** Config type for prisma-util.config.json.*/
+/** Config type for prisma-util.config.mjs.*/
 export declare type ConfigType = {
     /**Which .prisma files should be included. */
     includeFiles: string[];
@@ -28,6 +28,27 @@ export declare type ConfigType = {
     relations: {
         [fileModel: string]: string;
     };
+    /**Whether code-generated schemas should be enabled or not. */
+    codeSchemas: boolean;
+    /**Schema generators that use the @prisma-util/schema-creator package. */
+    codeGenerators: Promise<string>[];
+    /**pg_trgm support */
+    pgtrgm: boolean;
+    /**Full-text search support.*/
+    ftsIndexes: {
+        [fileModel: string]: {
+            type: "GIN" | "GIST";
+            indexes: {
+                language: string;
+                field: string;
+                weight: string;
+            }[];
+        };
+    };
+    /** Postgres schema. */
+    schema: string;
+    /** Middleware generation path. */
+    middleware: string;
 };
 /** Column type for schema models. */
 export declare type Column = {
@@ -97,6 +118,8 @@ export default class PrismaParser {
             [name: string]: string;
         };
     };
+    /** Change migration to accomodate full-text search indexes. */
+    migrate(command: string): Promise<boolean>;
     /** Returns all name conflicts.*/
     getConflicts(): {
         1: {

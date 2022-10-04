@@ -30,7 +30,7 @@ Prisma Util is an easy to use tool that merges multiple Prisma schema files, all
 
     npx prisma-util [options]
 
-The Prisma Util is built on top of Prisma, and as such all arguments and commands are the same as the ones from the [official documentation](https://www.prisma.io/docs/reference/api-reference/command-reference). The only additional parameter available is `--config` and it allows you to change the path of the config file (default: `prisma-util.config.json`).
+The Prisma Util is built on top of Prisma, and as such all arguments and commands are the same as the ones from the [official documentation](https://www.prisma.io/docs/reference/api-reference/command-reference). The only additional parameter available is `--config` and it allows you to change the path of the config file (default: `prisma-util.config.mjs`).
 
 ## The configuration file
 
@@ -51,6 +51,8 @@ The Prisma Util is built on top of Prisma, and as such all arguments and command
     4. [Cross-file Relations](#cross-file-relations)
     5. [Defining Cross-file Relations](#defining-cross-file-relations)
     6. [Extending Models & Inheritance](#extending-models--inheritance)
+    7. [Code-generated schemas](#code-generated-schemas)
+    8. [pg_trgm Support](#pgtrgm-support)
 
 ## Concepts
 
@@ -205,7 +207,7 @@ model Reply {
 ```
 
 Configuration file
-```json
+```mjs
 {
     "relations": {
         "schema.prisma:User.posts": "test.prisma:Reply"
@@ -217,13 +219,13 @@ In this example, Post is the polyfill model and it will be replaced by `test.pri
 
 ## Configuration
 
-All the configuration in the following parts will be done in your configuration file. This configuration file can be changed by using `--config` when running a command (default: `prisma-util.config.json`).
+All the configuration in the following parts will be done in your configuration file. This configuration file can be changed by using `--config` when running a command (default: `prisma-util.config.mjs`).
 
 ### Include Files
 
 To save on computational power, Prisma Util doesn't look for files and instead it requires you to add each file to the configuration file. 
 
-```json 
+```mjs 
 {
     "includeFiles": ["first.prisma", "second.prisma"]
 }
@@ -237,7 +239,7 @@ Paths in `includeFiles` are relative to your project root.
 
 This section allows you to exclude models from the generated schema. Array elements follow the naming concepts from [Model & Column Representation](#model--column-representation), except the column part.
 
-```json 
+```mjs 
 {
     "excludeModels": ["first.prisma:User", "second.prisma:Notification"]
 }
@@ -249,7 +251,7 @@ Paths in `excludeModels` are relative to your project root.
 
 Prisma Util requires a base schema file to work with. This schema file **must** define a `generator` and `datasource`, otherwise you'll get an error.
 
-```json
+```mjs
 {
     "baseSchema": "base.prisma"
 }
@@ -261,7 +263,7 @@ The path in `baseSchema` is relative to your project root.
 
 Cross-files relations are relations that use model names from other files. Cross-file relations is an [experimental](#automatic-mapper--experimental-features) feature and as such you have to opt-in in order to use it.
 
-```json
+```mjs
 {
     "crossFileRelations": true
 }
@@ -275,7 +277,7 @@ What a cross-file relation essentially does is removing (if present) the model (
 
 Example configuration section: 
 
-```json
+```mjs
 {
     "relations": {
         "posts.prisma:Post.user": "users.prisma:User"
@@ -332,7 +334,7 @@ Paths in `relations` are relative to your project root.
 Prisma Util allows you to extend models from any file. Extending a model will copy all of the non-id non-relation columns to the child. This sections uses the concepts from [Model & Column Representation](#model--column-representation).
 
 Example configuration section:
-```json
+```mjs
 {
     "extended": {
         "schema.prisma:Topic": "test.prisma:Post"
@@ -370,6 +372,60 @@ model Topic {
 ```
 
 Paths in `extended` are relative to your project root.
+
+### Code-generated schemas
+
+Generating schemas using code is an experimental feature, and as such you have to enable it in the configuration file.
+
+To define a code generator, just create an async function that returns a `string` and pass the function to the `codeGenerators` array. The return value of this function is the entire content of a Prisma schema, exactly how you define it in a file.
+
+To make code-generated schemas easier to use, I have created a separate package that you can use. ([@prisma-util/schema-creator](https://www.npmjs.com/package/@prisma-util/schema-creator))
+
+```mjs
+{
+    codeSchemas: true, // This line will enable code schemas
+    codeGenerators: [] // Each generator in this array will be called when the schema is generated
+}
+```
+
+### pg_trgm Support
+
+`pg_trgm` support is an experimental feature, meaning that you have to opt-in in order to use it. It requires 4 configuration entries to function correctly and is supported only with the `PostgreSQL` driver.
+
+The way this feature works is that it requires a middleware to be added to Prisma. To do this, import it and call it like this:
+
+```ts
+import middleware from "./path";
+prisma.$use(middleware(prisma));
+```
+
+```mjs
+{
+    pgtrgm: true, // This line will enable support for this feature.
+    schema: "public", // The schema is required for building the SQL queries
+    middleware: "path", // The path where the middleware is generated. This path is relative to your project root.
+    ftsIndexes: [
+        // This is the place where you specify your indexes.
+        {
+            type: "GIN", // This is the type of the index
+            indexes: [{
+                language: "english", // This is the language that will be used for the index 
+                field: "fieldName", // The name of the column that will get the index
+                weight: "A" // The weight of this column determines how important it is in ranking
+            }]
+        }
+    ]
+}
+```
+
+To use this feature in your code, just use `findFirst` or `findMany` and assign the query to an indexed column.
+
+The object returned is identical to the one returned by Prisma, with the addition of the `ftsscore` field which provides the similarity between the query and the index.
+
+> ### Caveat
+> Relations are not supported currently.
+
+To order the result of this query, just provide a column that is indexed to the `orderBy` object and it will sort using that order based on the similarity.
 
 ## Support
 
