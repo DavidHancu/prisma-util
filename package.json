@@ -11,7 +11,7 @@
     "classify": "node -p \"'export const LIB_VERSION = ' + JSON.stringify(require('./package.json').version) + ';'\" > src/version.ts",
     "manifest": "node tools/copy-distribution.js",
     "cleardistribution": "npx -y rimraf build",
-    "prebuild": "npm run cleardistribution && npm run classify",
+    "prebuild": "npm run classify",
     "postbuild": "npm run manifest",
     "packer": "node tools/set-env.js && cd build && npm pack --pack-destination ../",
     "build": "tsc -p .",

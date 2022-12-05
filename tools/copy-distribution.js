@@ -4,7 +4,7 @@ import { resolve, join, relative, dirname } from "path";
 const __dirname = process.cwd();
 
 const destination = resolve(__dirname, "build");
-const files = ["README.MD", "CHANGELOG.MD", "LICENSE", "package.json"];
+const files = ["README.MD", "LICENSE", "package.json"];
 const removedProperties = ["scripts"];
 
 for(const file of files)
