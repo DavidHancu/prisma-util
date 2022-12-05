@@ -1,7 +1,7 @@
 import { writeFileSync, copyFileSync, readFileSync } from "fs";
 import { resolve, join, relative, dirname } from "path";
 
-const _dirname = resolve(`../${process.cwd()}`);
+const _dirname = join(process.cwd(), "..");
 
 const destination = resolve(_dirname, "build");
 const files = ["README.MD", "LICENSE"];
