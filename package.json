@@ -8,8 +8,8 @@
   },
   "type": "module",
   "scripts": {
-    "classify": "node -p \"'export const LIB_VERSION = ' + JSON.stringify(require('./package.json').version) + ';'\" > src/version.ts",
-    "manifest": "node tools/copy-distribution.js",
+    "classify": "node -p \"'export const LIB_VERSION = ' + JSON.stringify(require('./package.json').version) + ';'\" > ../src/version.ts",
+    "manifest": "node ../tools/copy-distribution.js",
     "cleardistribution": "npx -y rimraf build",
     "prebuild": "npm run classify",
     "postbuild": "npm run manifest",
