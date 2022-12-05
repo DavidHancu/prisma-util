@@ -39,6 +39,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm ci
+    - run: mkdir build
     - run: cp package.json build/package.json
     - run: npm run semantic-release
       env: 
