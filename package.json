@@ -14,7 +14,7 @@
     "prebuild": "npm run classify",
     "postbuild": "npm run manifest",
     "packer": "node tools/set-env.js && cd build && npm pack --pack-destination ../",
-    "build": "tsc -p .",
+    "build": "tsc -p ../",
     "local": "npm run build && npm run packer",
     "postversion": "npm run build",
     "semantic-release": "semantic-release --branches main"
