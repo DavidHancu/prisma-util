@@ -58,6 +58,7 @@
     "@types/inquirer": "^9.0.1",
     "@types/node": "^18.7.14",
     "@types/pluralize": "^0.0.29",
+    "replace-json-property": "^1.8.0",
     "semantic-release": "^19.0.5",
     "typescript": "^4.8.2"
   }

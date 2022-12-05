@@ -1,13 +1,14 @@
 {
-    "pkgRoot": "build",
     "plugins": [
       "@semantic-release/commit-analyzer",
       "@semantic-release/release-notes-generator",
-      "@semantic-release/npm",
+      ["@semantic-release/npm", {
+        "pkgRoot": "build"
+      }],
       [
         "@semantic-release/exec",
         {
-          "prepareCmd": "npx rjp package.json version nextRelease.version"
+          "prepareCmd": "replace-json-property package.json version ${nextRelease.version} && npm run build"
         }
       ],
       [
