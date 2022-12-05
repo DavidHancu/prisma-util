@@ -5,7 +5,7 @@
       [
         "@semantic-release/exec",
         {
-          "prepareCmd": "replace-json-property package.json version ${nextRelease.version}"
+          "prepareCmd": "replace-json-property build/package.json version ${nextRelease.version}"
         }
       ],
       ["@semantic-release/npm", {
