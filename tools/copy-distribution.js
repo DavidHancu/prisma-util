@@ -1,5 +1,5 @@
-const { writeFileSync, copyFileSync, readFileSync } = require("fs");
-const { resolve, join, relative, dirname } = require("path");
+import { writeFileSync, copyFileSync, readFileSync } from "fs";
+import { resolve, join, relative, dirname } from "path";
 
 const _dirname = process.cwd();
 
