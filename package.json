@@ -49,6 +49,11 @@
     "resolve": "^1.22.1"
   },
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.2",
+    "@semantic-release/commit-analyzer": "^9.0.2",
+    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/release-notes-generator": "^10.0.3",
     "@types/glob": "^8.0.0",
     "@types/inquirer": "^9.0.1",
     "@types/node": "^18.7.14",
