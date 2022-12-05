@@ -2,9 +2,9 @@
   "name": "prisma-util",
   "version": "0.0.0-development",
   "description": "Prisma Util is an easy to use tool that merges multiple Prisma schema files, allows extending of models, resolves naming conflicts both manually and automatically and provides easy access to Prisma commands and timing reports. It's mostly a plug-and-play replacement, with an easy confirguration file.",
-  "main": "build/index.js",
+  "main": "index.js",
   "bin": {
-    "prisma-util": "build/cli/index.js"
+    "prisma-util": "cli/index.js"
   },
   "type": "module",
   "scripts": {
@@ -16,6 +16,7 @@
     "packer": "node tools/set-env.js && cd build && npm pack --pack-destination ../",
     "build": "tsc -p .",
     "local": "npm run build && npm run packer",
+    "postversion": "npm run build",
     "semantic-release": "semantic-release --branches main"
   },
   "keywords": [
