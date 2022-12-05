@@ -1,10 +1,10 @@
 import { writeFileSync, copyFileSync, readFileSync } from "fs";
 import { resolve, join, relative, dirname } from "path";
 
-const _dirname = process.cwd();
+const _dirname = resolve(`../${process.cwd()}`);
 
 const destination = resolve(_dirname, "build");
-const files = ["README.MD", "LICENSE", "package.json"];
+const files = ["README.MD", "LICENSE"];
 const removedProperties = ["scripts"];
 
 for(const file of files)
