@@ -8,13 +8,15 @@ export const showIntro = () => {
         .withNewLine()
         .withSection("Usage", [`${chalk.gray("$")} prisma-util [command]`])
         .withSection("Commands", [
+            ` ${chalk.gray("prepare")}   Initiate a simple Prisma Util configuration file.`,
             `    ${chalk.gray("init")}   Set up Prisma for your app`, 
             `${chalk.gray("generate")}   Generate artifacts (e.g. Prisma Client)`, 
             `      ${chalk.gray("db")}   Manage your database schema and lifecycle`, 
             ` ${chalk.gray("migrate")}   Migrate your database`, 
             `  ${chalk.gray("studio")}   Browse your data with Prisma Studio`, 
             `  ${chalk.gray("format")}   Format your schema`,
-            `  ${chalk.gray("schema")}   Generate schemas using Prisma Util without running additional commands`])
+            `  ${chalk.gray("schema")}   Generate schemas using Prisma Util without running additional commands`,
+            ` ${chalk.gray("upgrade")}   Migrate your configuration to the latest version`])
         .withSection("Flags", [`${chalk.gray("--preview-feature")}   Run Preview Prisma commands`])
         .withSection("Examples", 
             [   `${chalk.gray("Set up a new Prisma project")}`, `${chalk.gray("$")} prisma-util init`, "", 

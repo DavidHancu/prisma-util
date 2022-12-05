@@ -1,4 +1,6 @@
 node_modules
+build
+prisma-util-*.tgz
 # Keep environment variables out of version control
 .env
 *.prisma

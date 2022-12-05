@@ -4,7 +4,7 @@
       "module": "ESNext",
       "lib": ["es2018"],
       "declaration": true,
-      "outDir": "dist",
+      "outDir": "build",
       "rootDir": "src",
       "strict": true,
       "types": ["node"],
