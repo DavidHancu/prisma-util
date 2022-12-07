@@ -369,7 +369,7 @@ export default class PrismaParser {
         this.models = {};
         this.modelColumns = {};
         this.solutions = [];
-        this.remapper = {};
+        this.remapper = this.config.relations ? this.config.relations : {};
         this.enums = {};
         this.files = [];
         this.generators = {};
