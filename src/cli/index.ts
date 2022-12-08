@@ -44,9 +44,20 @@ program
             const [major, minor, patch] = latest.split(".").map((num: string) => Number.parseInt(num));
             const [majorCurrent, minorCurrent, patchCurrent] = current.split(".").map((num: string) => Number.parseInt(num));
 
-            const development = process.env.ENV == "dev";
+            const development = process.env.ENV == "dev" || process.env.ENV == "beta";
             if(!development && (major > majorCurrent || minor > minorCurrent || patch > patchCurrent)) {
                 update(`There's an update available for Prisma Util! (current: v${current}, latest: v${latest})\n`, "\n");
+            }
+
+            if(process.env.ENV == "beta")
+            {
+                new MessageBuilder()
+                    .withHeader()
+                    .withTitle(chalk.gray(`Thank your for beta testing ${chalk.blue("Prisma Util")}!\n  Please provide any feedback you may have, as it helps out a ton!`))
+                    .withNewLine()
+                    .withSection("Beta Information: ", 
+                    [`${chalk.white("Getting Started")} ${chalk.gray("https://prisma-util.gitbook.io/beta/getting-started")}`])
+                    .show();
             }
         } catch (err) {
             error("An error has occured while trying to check the CLI version.\n", "\n");

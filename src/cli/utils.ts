@@ -69,6 +69,7 @@ export async function getConfigurationPath(configPath: string)
 {
     const packConfig = JSON.parse(await fs.readFile(convertPathToLocal("./package.json"), "utf8"));
     const folder = packConfig.prismaUtil ? packConfig.prismaUtil : "prisma-util";
+    configPath = configPath == "<DEF>" ? (packConfig.prismaUtilConfig ? packConfig.prismaUtilConfig : "config.mjs") : "config.mjs";
     const p = convertPathToLocal(path.join(folder, configPath));
 
     return p;
