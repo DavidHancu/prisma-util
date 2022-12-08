@@ -46,7 +46,7 @@ program
 
             const development = process.env.ENV == "dev";
             if(!development && (major > majorCurrent || minor > minorCurrent || patch > patchCurrent)) {
-                update(`There's an update available for Prisma Util! (current: v${current}, latest: v${latest})`, "\n");
+                update(`There's an update available for Prisma Util! (current: v${current}, latest: v${latest})\n`, "\n");
             }
         } catch (err) {
             error("An error has occured while trying to check the CLI version.\n", "\n");
@@ -92,6 +92,52 @@ program
             return;
         }
     });
+
+// Configure Prisma Util
+const configure = program
+    .command("configure")
+    .action(async (options) => {
+        if (options.H) {
+            new MessageBuilder()
+                .withHeader()
+                .withTitle(chalk.gray("Configure your Prisma Util instance"))
+                .withNewLine()
+                .withSection("Usage", [`${chalk.gray("$")} prisma-util configure <key> <value>`])
+                .withSection("Options", [`${chalk.gray("root <value>")}     Change the Prisma Util Root`, 
+                                         `${chalk.gray("config <value>")}   Change the configuration file name`])
+                .show();
+            return;
+        }
+    });
+createSubCommand(configure, "root <value>")
+    .action(async (value, options) => {
+        options = configure.optsWithGlobals();
+        options.args = { value };
+
+        if(options.args.value)
+        {
+            const packConfig = JSON.parse(await fs.readFile(convertPathToLocal("./package.json"), "utf8"));
+            packConfig.prismaUtil = options.args.value;
+            await fs.writeFile(convertPathToLocal("package.json"), JSON.stringify(packConfig, null, 2));
+
+            success(`Changed the ${chalk.bold("root folder")} to ${chalk.bold(value)}.`, "\n");
+        }
+    });
+createSubCommand(configure, "config <value>")
+    .action(async (value, options) => {
+        options = configure.optsWithGlobals();
+        options.args = { value };
+
+        if(options.args.value)
+        {
+            const packConfig = JSON.parse(await fs.readFile(convertPathToLocal("./package.json"), "utf8"));
+            packConfig.prismaUtilConfig = options.args.value;
+            await fs.writeFile(convertPathToLocal("package.json"), JSON.stringify(packConfig, null, 2));
+
+            success(`Changed the ${chalk.bold("configuration name")} to ${chalk.bold(value)}.`, "\n");
+        }
+    });
+
 // Match Prisma's version command
 program
     .command("version")
@@ -878,7 +924,7 @@ program
 
 // Add Prisma Util and Prisma flags to all commands.
 program.commands.forEach((cmd) => {
-    cmd.option("--config [config]", "Specify a different path for the Prisma Util config", "config.mjs")
+    cmd.option("--config [config]", "Specify a different path for the Prisma Util config", "<DEF>")
         .option("--help, -h", "Display this help message")
         .option("--preview-feature", "Run Preview Prisma commands")
 });

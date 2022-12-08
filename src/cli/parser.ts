@@ -397,7 +397,7 @@ export default class PrismaParser {
     /** Load .prisma files from config and parse models.*/
     async load() {
         if (!this.config.baseSchema) {
-            error("The config file has been reset to include all of the properties and to fix errors.");
+            error("Base schema not found.");
             process.exit(1);
         }
 

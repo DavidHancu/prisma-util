@@ -92,6 +92,7 @@ export async function getFiles(directory: string): Promise<string[]> {
 export async function createConfig(configPath: string) {
     const packConfig = JSON.parse(await fs.readFile(convertPathToLocal("./package.json"), "utf8"));
     const folder = packConfig.prismaUtil ? packConfig.prismaUtil : "prisma-util";
+    configPath = configPath == "<DEF>" ? (packConfig.prismaUtilConfig ? packConfig.prismaUtilConfig : "config.mjs") : "config.mjs";
     const p = convertPathToLocal(path.join(folder, configPath));
     let created = false;
     try {
@@ -115,13 +116,16 @@ export async function createConfig(configPath: string) {
     try {
         textToWrite = (await fs.readFile(p, "utf8")).replace(/@typedef {".*} OptionalFeatures/gms, `@typedef {${OptionalFeaturesArray.map(feature => `"${feature}"`).join(" | ")}} OptionalFeatures`);
         json = (await import(pathToFileURL(p).toString())).default;
-        if(configPath != "config.mjs" && (!packConfig.prismaUtilConfig || packConfig.prismaUtilConfig != configPath))
+        if(configPath == "<DEF>" && (!packConfig.prismaUtilConfig || !packConfig.prismaUtil))
         {
+            packConfig.prismaUtil = folder;
             packConfig.prismaUtilConfig = configPath;
             await fs.writeFile(convertPathToLocal("package.json"), JSON.stringify(packConfig, null, 2));
         }
     } catch (err) {
-        textToWrite = 
+        if(created)
+        {
+            textToWrite = 
 `// @ts-check
 
 /**
@@ -195,16 +199,25 @@ export async function createConfig(configPath: string) {
  * @type {Configuration}
  */
 export default ${json5.stringify(json, null, 4)};`;
-        try {
-            await fs.mkdir(convertPathToLocal("prisma-util"));
-            await fs.mkdir(convertPathToLocal(path.join("prisma-util", "types")));
-            await fs.mkdir(convertPathToLocal(path.join("prisma-util", "functions")));
-            if(!packConfig.prismaUtil)
-            {
-                packConfig.prismaUtil = "prisma-util";
-                await fs.writeFile(convertPathToLocal("package.json"), JSON.stringify(packConfig, null, 2));
-            }
-        } catch (e) {
+                    try {
+                        await fs.mkdir(convertPathToLocal("prisma-util"));
+                        await fs.mkdir(convertPathToLocal(path.join("prisma-util", "types")));
+                        await fs.mkdir(convertPathToLocal(path.join("prisma-util", "functions")));
+                        if(!packConfig.prismaUtil)
+                        {
+                            packConfig.prismaUtil = "prisma-util";
+                            await fs.writeFile(convertPathToLocal("package.json"), JSON.stringify(packConfig, null, 2));
+                        }
+                        if(!packConfig.prismaUtilConfig)
+                        {
+                            packConfig.prismaUtilConfig = configPath;
+                        }
+                    } catch (e) {
+                    }
+        } else
+        {
+            error("The configuration file is invalid.", "\n");
+            process.exit(1);
         }
     }
     await fs.writeFile(p, textToWrite);

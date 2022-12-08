@@ -16,6 +16,7 @@
     "packer": "node tools/set-env.js && cd build && npm pack --pack-destination ../",
     "build": "tsc -p ../",
     "local": "npm run build && npm run packer",
+    "run-l": "node -p \"'export const LIB_VERSION = ' + JSON.stringify(require('./package.json').version) + ';'\" > src/version.ts && tsc -p . && node tools/copy-distribution-l.js && node tools/set-env.js && cd build && npm pack --pack-destination ../",
     "postversion": "npm run build",
     "semantic-release": "semantic-release --branches main"
   },
