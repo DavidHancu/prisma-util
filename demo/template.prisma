@@ -1,0 +1,5 @@
+model Dates {
+    id Int @id @default(autoincrement())
+    updatedAt DateTime @updatedAt
+    createdAt DateTime @default(now())
+}
