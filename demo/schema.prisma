@@ -1,0 +1,50 @@
+generator client {
+    provider = "prisma-client-js"
+    engineType = "binary"
+    previewFeatures = ["clientExtensions"]
+}
+
+datasource db {
+    provider = "sqlite"
+    url = "file:../sql.db"
+}
+
+model User {
+    id Int @id @default(autoincrement())
+
+    firstName String
+    lastName String
+
+    email String @unique
+
+    links Link[]
+
+    passwordId Int @unique
+    password Password @relation(fields: [passwordId], references: [id])
+
+    session Session?
+}
+
+model Link {
+    id Int @id @default(autoincrement())
+    url String @unique
+
+    posterId Int
+    poster User @relation(fields: [posterId], references: [id])
+}
+
+model Password {
+    id Int @id @default(autoincrement())
+
+    hash String @unique
+    salt String @unique
+
+    user User?
+}
+
+model Session {
+    id String @id @default(cuid())
+
+    userId Int @unique
+    user User @relation(fields: [userId], references: [id])
+}
