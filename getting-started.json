@@ -1,1 +1,769 @@
-{}
+{
+    "$manifest": {
+        "assets": [
+            "mkdir prisma",
+            "getting-started/schema.prisma as prisma/schema.prisma",
+            "getting-started/post.prisma as prisma/post.prisma",
+            "getting-started/base.prisma as prisma/base.prisma",
+            "getting-started/user.prisma as prisma/user.prisma"
+        ]
+    },
+    "steps": [
+        {
+            "type": "command",
+            "allowedCommand": "npx prisma-util prepare",
+            "displayPath": "root",
+            "changeEnv": {},
+            "text": [
+                [
+                    "As a first step, navigate to your project directory and run the following command."
+                ],
+                [
+                    "This command will install and initialize the ",
+                    {
+                        "color": "passion",
+                        "text": "configuration file"
+                    },
+                    " file, which will allow you to configure the behavior of this tool."
+                ],
+                [
+                    "Type the following command: ",
+                    {
+                        "color": "passion",
+                        "text": "npx prisma-util prepare"
+                    }
+                ]
+            ]
+        },
+        {
+            "type": "editFile",
+            "path": "prisma/base.prisma",
+            "text": [
+                [
+                    "Our current schema is pretty massive, so let's start breaking it down."
+                ],
+                [],
+                [
+                    "Prisma Util requires a base schema with two blocks: the generator and the datasource."
+                ],
+                [
+                    "Let's move the generator and datasource to a separate file. To do this, remove the following lines from"
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "prisma/schema.prisma"
+                    },
+                    " and add them to ",
+                    {
+                        "color": "passion",
+                        "text": "prisma/base.prisma"
+                    },
+                    "."
+                ],
+                [],
+                [
+                    "generator client {"
+                ],
+                [
+                    "  provider = \"prisma-client-js\""
+                ],
+                [
+                    "  engineType = \"binary\""
+                ],
+                [
+                    "}"
+                ],
+                [],
+                [
+                    "datasource db {"
+                ],
+                [
+                    "  provider = \"sqlite\""
+                ],
+                [
+                    "  url = \"file:../sql.db\""
+                ],
+                [
+                    "}"
+                ]
+            ]
+        },
+        {
+            "type": "editFile",
+            "path": "prisma-util/config.mjs",
+            "text": [
+                [
+                    "There you go, now it's looking much better. Let's edit the configuration file for Prisma Util"
+                ],
+                [
+                    "to let it know that it should look in this new file for the generator and datasource."
+                ],
+                [
+                    "This is very simple to do, we just need to edit the ",
+                    {
+                        "color": "passion",
+                        "text": "baseSchema"
+                    },
+                    " string in our ",
+                    {
+                        "color": "passion",
+                        "text": "prisma-util/config.mjs"
+                    },
+                    " file like this:"
+                ],
+                [],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// The JSDocs are excluded from this code block to make"
+                    }
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// it more concise and easy to follow."
+                    }
+                ],
+                [
+                    "export default {"
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "  // Other configuration lines"
+                    }
+                ],
+                [
+                    "  optionalFeatures: [],"
+                ],
+                [
+                    "  includeFiles: [],"
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "  baseSchema: 'prisma/base.prisma'"
+                    },
+                    ","
+                ],
+                [
+                    "};"
+                ]
+            ]
+        },
+        {
+            "type": "editFile",
+            "path": "prisma/user.prisma",
+            "text": [
+                [
+                    "Right now, we have two models (Post and User) in the same file. This might work right now, but we want to make this system scalable."
+                ],
+                [
+                    "What big projects do is that they split models into different files based on scope."
+                ],
+                [],
+                [
+                    "Let's remove the following lines from ",
+                    {
+                        "color": "passion",
+                        "text": "prisma/schema.prisma"
+                    },
+                    " and add them to ",
+                    {
+                        "color": "passion",
+                        "text": "prisma/user.prisma"
+                    },
+                    "."
+                ],
+                [],
+                [
+                    "model User {"
+                ],
+                [
+                    "  id Int @id @default(autoincrement())"
+                ],
+                [
+                    "  email String @unique"
+                ],
+                [
+                    "  name String?"
+                ],
+                [
+                    "  posts Post[]"
+                ],
+                [
+                    "}"
+                ]
+            ]
+        },
+        {
+            "type": "editFile",
+            "path": "prisma/post.prisma",
+            "text": [
+                [
+                    "Now, let's remove the following lines from ",
+                    {
+                        "color": "passion",
+                        "text": "prisma/schema.prisma"
+                    },
+                    " and add them to ",
+                    {
+                        "color": "passion",
+                        "text": "prisma/post.prisma"
+                    },
+                    "."
+                ],
+                [],
+                [
+                    "model Post {"
+                ],
+                [
+                    "  id Int @id @default(autoincrement())"
+                ],
+                [
+                    "  title String"
+                ],
+                [
+                    "  content String?"
+                ],
+                [
+                    "  published Boolean @default(false)"
+                ],
+                [
+                    "  author User @relation(fields: [authorId], references: [id])"
+                ],
+                [
+                    "  authorId Int"
+                ],
+                [
+                    "}"
+                ]
+            ]
+        },
+        {
+            "type": "removeFile",
+            "path": "prisma/schema.prisma",
+            "text": [
+                [
+                    "With the previous splits, we've emptied the ",
+                    {
+                        "color": "passion",
+                        "text": "prisma/schema.prisma"
+                    },
+                    " file."
+                ],
+                [
+                    "We can get rid of this file, because we no longer need it."
+                ],
+                [],
+                [
+                    "Delete the ",
+                    {
+                        "color": "passion",
+                        "text": "prisma/schema.prisma"
+                    },
+                    " file."
+                ]
+            ]
+        },
+        {
+            "type": "editFile",
+            "path": "prisma-util/config.mjs",
+            "text": [
+                [
+                    "To tell Prisma Util to add the new files that we've just created, we need to add them to"
+                ],
+                [
+                    "our ",
+                    {
+                        "color": "passion",
+                        "text": "configuration file"
+                    },
+                    ". To do this, let's first create the definitions using ",
+                    {
+                        "color": "passion",
+                        "text": "schema-creator"
+                    },
+                    "."
+                ],
+                [
+                    "To do this, add the following lines to the ",
+                    {
+                        "color": "passion",
+                        "text": "configuration file"
+                    },
+                    ":"
+                ],
+                [],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// The JSDocs are excluded from this code block to make"
+                    }
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// it more concise and easy to follow."
+                    }
+                ],
+                [],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// This line will import the function that we need"
+                    }
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "import { constantModel } from \"prisma-util/schema-creator\";"
+                    }
+                ],
+                [],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// Let's create a model definition for the Post model and the User model"
+                    }
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// We just need to pass the path to the .prisma file to constantModel"
+                    }
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "const PostDefinition = constantModel(\"prisma/post.prisma\");"
+                    }
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "const UserDefinition = constantModel(\"prisma/user.prisma\");"
+                    }
+                ],
+                [],
+                [
+                    "export default {"
+                ],
+                [
+                    "  optionalFeatures: [],"
+                ],
+                [
+                    "  includeFiles: [],"
+                ],
+                [
+                    "  baseSchema: \"prisma/base.prisma\""
+                ],
+                [
+                    "}"
+                ]
+            ]
+        },
+        {
+            "type": "editFile",
+            "path": "prisma-util/config.mjs",
+            "text": [
+                [
+                    "Now, let's tell Prisma Util to use the definitions we've just created to import the files."
+                ],
+                [
+                    "To do this, add the following lines to the ",
+                    {
+                        "color": "passion",
+                        "text": "configuration file"
+                    },
+                    ":"
+                ],
+                [],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// The JSDocs are excluded from this code block to make"
+                    }
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// it more concise and easy to follow."
+                    }
+                ],
+                [],
+                [
+                    "import { constantModel } from \"prisma-util/schema-creator\";"
+                ],
+                [],
+                [
+                    "const PostDefinition = constantModel(\"prisma/post.prisma\");"
+                ],
+                [
+                    "const UserDefinition = constantModel(\"prisma/user.prisma\");"
+                ],
+                [],
+                [
+                    "export default {"
+                ],
+                [
+                    "  optionalFeatures: [],"
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "  // Now we can use the model definitions created earlier to include the files"
+                    }
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "  includeFiles: [PostDefinition, UserDefinition],"
+                    }
+                ],
+                [
+                    "  baseSchema: \"prisma/base.prisma\""
+                ],
+                [
+                    "}"
+                ]
+            ]
+        },
+        {
+            "type": "editFile",
+            "path": "prisma/user.prisma",
+            "text": [
+                [
+                    "Remember how our 2 models had a relation initially? We need to do a bit more configuration to allow those relations to function adequately."
+                ],
+                [
+                    "Let's start by removing the ",
+                    {
+                        "color": "passion",
+                        "text": "posts[]"
+                    },
+                    " field from our User model, because it will be automatically added by Prisma Util. "
+                ],
+                [
+                    "To do this, edit ",
+                    {
+                        "color": "passion",
+                        "text": "prisma/user.prisma"
+                    },
+                    " like this:"
+                ],
+                [],
+                [
+                    "model User {"
+                ],
+                [
+                    "  id Int @id @default(autoincrement())"
+                ],
+                [
+                    "  email String @unique"
+                ],
+                [
+                    "  name String?"
+                ],
+                [
+                    "}"
+                ]
+            ]
+        },
+        {
+            "type": "editFile",
+            "path": "prisma/post.prisma",
+            "text": [
+                [
+                    "Now it's time to fix the relation from the Post model. The fix is very simple:"
+                ],
+                [
+                    "We'll create a ",
+                    {
+                        "color": "passion",
+                        "text": "polyfill"
+                    },
+                    " User model so we can satisfy the Prisma extension for VSCode in a way that won't show any issues."
+                ],
+                [
+                    "To do this, edit ",
+                    {
+                        "color": "passion",
+                        "text": "prisma/post.prisma"
+                    },
+                    " like this:"
+                ],
+                [],
+                [
+                    {
+                        "color": "passion",
+                        "text": "model User {"
+                    }
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "  id Int @id @default(autoincrement())"
+                    }
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "  posts Post[]"
+                    }
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "}"
+                    }
+                ],
+                [],
+                [
+                    "model Post {"
+                ],
+                [
+                    "  id Int @id @default(autoincrement())"
+                ],
+                [
+                    "  title String"
+                ],
+                [
+                    "  content String?"
+                ],
+                [
+                    "  published Boolean @default(false)"
+                ],
+                [
+                    "  author User @relation(fields: [authorId], references: [id])"
+                ],
+                [
+                    "  authorId Int"
+                ],
+                [
+                    "}"
+                ]
+            ]
+        },
+        {
+            "type": "editFile",
+            "path": "prisma-util/config.mjs",
+            "text": [
+                [
+                    "You might be wondering: Doesn't this lead to a naming conflict? Now we have 2 User models!"
+                ],
+                [
+                    "The answer is usually yes, but we'll do a clever trick to fix that."
+                ],
+                [],
+                [
+                    "This trick uses an optional feature called ",
+                    {
+                        "color": "passion",
+                        "text": "Cross-File Relations"
+                    },
+                    ". Think about it as a mapper that replaces the ",
+                    {
+                        "color": "passion",
+                        "text": "polyfill"
+                    },
+                    " User model we just created with the true original model."
+                ],
+                [
+                    "To do this, add the following lines to the ",
+                    {
+                        "color": "passion",
+                        "text": "configuration file"
+                    },
+                    ":"
+                ],
+                [],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// The JSDocs are excluded from this code block to make"
+                    }
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// it more concise and easy to follow."
+                    }
+                ],
+                [],
+                [
+                    "import { constantModel } from \"prisma-util/schema-creator\";"
+                ],
+                [],
+                [
+                    "const PostDefinition = constantModel(\"prisma/post.prisma\");"
+                ],
+                [
+                    "const UserDefinition = constantModel(\"prisma/user.prisma\");"
+                ],
+                [],
+                [
+                    "export default {"
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "  // We need to add the \"crossFileRelations\" optional feature to this array."
+                    }
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "  optionalFeatures: [\"crossFileRelations\"],"
+                    }
+                ],
+                [
+                    "  includeFiles: [PostDefinition, UserDefinition],"
+                ],
+                [
+                    "  baseSchema: \"prisma/base.prisma\""
+                ],
+                [
+                    "}"
+                ]
+            ]
+        },
+        {
+            "type": "editFile",
+            "path": "prisma-util/config.mjs",
+            "text": [
+                [
+                    "We're not done yet however. We need to tell the mapper how to parse our relations."
+                ],
+                [
+                    "We'll use a new field called ",
+                    {
+                        "color": "passion",
+                        "text": "relations"
+                    },
+                    ", as well as the definitions that we've created in the earlier steps."
+                ],
+                [],
+                [
+                    "To do this, add the following lines to the ",
+                    {
+                        "color": "passion",
+                        "text": "configuration file"
+                    },
+                    ":"
+                ],
+                [],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// The JSDocs are excluded from this code block to make"
+                    }
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "// it more concise and easy to follow."
+                    }
+                ],
+                [],
+                [
+                    "import { constantModel } from \"prisma-util/schema-creator\";"
+                ],
+                [],
+                [
+                    "const PostDefinition = constantModel(\"prisma/post.prisma\");"
+                ],
+                [
+                    "const UserDefinition = constantModel(\"prisma/user.prisma\");"
+                ],
+                [],
+                [
+                    "export default {"
+                ],
+                [
+                    "  optionalFeatures: [\"crossFileRelations\"],"
+                ],
+                [
+                    "  includeFiles: [PostDefinition, UserDefinition],"
+                ],
+                [
+                    "  baseSchema: \"prisma/base.prisma\""
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "  // This is our new field!"
+                    }
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "  relations: {"
+                    }
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "    // The key for this object will be the field that we want to remap"
+                    }
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "    // In our case, it is the \"author\" field of the Post model"
+                    }
+                ],
+                [],
+                [
+                    {
+                        "color": "dim",
+                        "text": "    // The value for this object is the new type for the field"
+                    }
+                ],
+                [
+                    {
+                        "color": "dim",
+                        "text": "    // In our case, it is the User model"
+                    }
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "    [PostDefinition(\"Post\", \"author\")]: UserDefinition(\"User\")"
+                    }
+                ],
+                [
+                    {
+                        "color": "passion",
+                        "text": "  }"
+                    }
+                ],
+                [
+                    "}"
+                ]
+            ]
+        },
+        {
+            "type": "command",
+            "allowedCommand": "npx prisma-util migrate dev",
+            "displayPath": "root",
+            "changeEnv": {},
+            "text": [
+                [
+                    "Prisma Util is a wrapper around the Prisma CLI. Because of this, the commands are exactly the same."
+                ],
+                [
+                    "Let's migrate the database and generate the PrismaClient that we'll use in our code."
+                ],
+                [
+                    "To do this, type the following command: ",
+                    {
+                        "color": "passion",
+                        "text": "npx prisma-util migrate dev"
+                    }
+                ]
+            ]
+        }
+    ]
+}
