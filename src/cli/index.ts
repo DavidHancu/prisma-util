@@ -11,6 +11,7 @@ import inquirer from "inquirer";
 import { LIB_VERSION as current } from "../version.js";
 import axios from "axios";
 import * as fs from 'fs/promises';
+import InteractiveMode from "./interactive.js";
 
 // Requires node v14.7.0
 const program = new commander.Command();
@@ -102,6 +103,13 @@ program
 
             return;
         }
+    });
+
+program
+    .command("interactive")
+    .option("--tutorial, --guide <link>")
+    .action(async (options) => {
+        new InteractiveMode(options.guide ? options.guide : undefined);
     });
 
 // Configure Prisma Util

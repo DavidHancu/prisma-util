@@ -8,15 +8,16 @@ export const showIntro = () => {
         .withNewLine()
         .withSection("Usage", [`${chalk.gray("$")} prisma-util [command]`])
         .withSection("Commands", [
-            ` ${chalk.gray("prepare")}   Initiate a simple Prisma Util configuration file.`,
-            `    ${chalk.gray("init")}   Set up Prisma for your app`, 
-            `${chalk.gray("generate")}   Generate artifacts (e.g. Prisma Client)`, 
-            `      ${chalk.gray("db")}   Manage your database schema and lifecycle`, 
-            ` ${chalk.gray("migrate")}   Migrate your database`, 
-            `  ${chalk.gray("studio")}   Browse your data with Prisma Studio`, 
-            `  ${chalk.gray("format")}   Format your schema`,
-            `  ${chalk.gray("schema")}   Generate schemas using Prisma Util without running additional commands`,
-            ` ${chalk.gray("upgrade")}   Migrate your configuration to the latest version`])
+            `    ${chalk.gray("prepare")}   Initiate a simple Prisma Util configuration file.`,
+            `       ${chalk.gray("init")}   Set up Prisma for your app`, 
+            `   ${chalk.gray("generate")}   Generate artifacts (e.g. Prisma Client)`, 
+            `         ${chalk.gray("db")}   Manage your database schema and lifecycle`, 
+            `    ${chalk.gray("migrate")}   Migrate your database`, 
+            `     ${chalk.gray("studio")}   Browse your data with Prisma Studio`, 
+            `     ${chalk.gray("format")}   Format your schema`,
+            `     ${chalk.gray("schema")}   Generate schemas using Prisma Util without running additional commands`,
+            `    ${chalk.gray("upgrade")}   Migrate your configuration to the latest version`,
+            `${chalk.gray("interactive")}   Run the tutorials from the official documentation in your Terminal`])
         .withSection("Flags", [`${chalk.gray("--preview-feature")}   Run Preview Prisma commands`])
         .withSection("Examples", 
             [   `${chalk.gray("Set up a new Prisma project")}`, `${chalk.gray("$")} prisma-util init`, "", 
@@ -36,8 +37,8 @@ export default class MessageBuilder {
         this.text = "";
     }
 
-    withHeader() {
-        this.text += `\n${chalk.bold(chalk.blue("Prisma Util"))}\n\n`;
+    withHeader(header?: string) {
+        this.text += (header ? `\n${header}\n\n` : `\n${chalk.bold(chalk.blue("Prisma Util"))}\n\n`);
         return this;
     }
 
@@ -46,9 +47,9 @@ export default class MessageBuilder {
         return this;
     }
 
-    withSection(title: string, items: string[])
+    withSection(title: string, items: string[], c: boolean = false)
     {
-        this.text += `${chalk.bold(chalk.blue(title))}\n\n`;
+        this.text += (c ? `${title}\n\n` : `${chalk.bold(chalk.blue(title))}\n\n`);
         items.forEach((item) => {
             this.text += `  ${item}\n`;
         });

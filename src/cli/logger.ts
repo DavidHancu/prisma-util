@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { errorTag, prismaCLITag, warningTag, conflictTag, successTag, experimentalTag, updateTag } from "./messages.js";
+import gradient from "gradient-string";
 
 export function log(text: string, before?: string)
 {
@@ -34,4 +35,9 @@ export function conflict(text: string, before?: string)
 export function experimental(text: string, before?: string)
 {
     console.log(`${before ? before : ""}${experimentalTag} ${chalk.white(text)}`);
+}
+
+export function interactive(text: string, before?: string)
+{
+    console.log(`${before ? before : ""}${gradient.passion(text)}`);
 }

@@ -18,7 +18,7 @@
     "local": "npm run build && npm run packer",
     "run-l": "node -p \"'export const LIB_VERSION = ' + JSON.stringify(require('./package.json').version) + ';'\" > src/version.ts && tsc -p . && node tools/copy-distribution-l.js && node tools/set-env.js && cd build && npm pack --pack-destination ../",
     "postversion": "npm run build",
-    "semantic-release": "semantic-release --branches main"
+    "semantic-release": "semantic-release"
   },
   "keywords": [
     "cli",
@@ -44,6 +44,7 @@
     "commander": "^9.4.0",
     "dotenv": "^16.0.3",
     "glob": "^8.0.3",
+    "gradient-string": "^2.0.2",
     "inquirer": "^9.1.0",
     "json5": "^2.2.1",
     "ora": "^6.1.2",
@@ -57,6 +58,7 @@
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/release-notes-generator": "^10.0.3",
     "@types/glob": "^8.0.0",
+    "@types/gradient-string": "^1.1.2",
     "@types/inquirer": "^9.0.1",
     "@types/node": "^18.7.14",
     "@types/pluralize": "^0.0.29",
