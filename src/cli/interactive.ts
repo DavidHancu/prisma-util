@@ -58,7 +58,7 @@ export default class InteractiveMode {
                 .withNewLine()
                 .withSection(gradient.passion("How to start?"), [
                     `${chalk.gray("Run a tutorial from the Documentation")}`, `${chalk.gray("$")} prisma-util interactive --tutorial <link>`, "",
-                    `${chalk.gray("See a list of available tutorials")}`, `https://prisma-util.gitbook.io/stable/interactive#Tutorials`
+                    `${chalk.gray("See a list of available tutorials")}`, `https://prisma-util.gitbook.io/stable/api-documentation/command-reference/interactive#available-tutorials`
                 ], true)
                 .show()
             return;
