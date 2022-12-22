@@ -1,8 +1,0 @@
-node_modules
-build
-prisma-util-*.tgz
-# Keep environment variables out of version control
-.env
-*.prisma
-prisma-util.config.json
-prisma-util.config.mjs
