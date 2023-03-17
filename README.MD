@@ -20,7 +20,7 @@
 
 ## What is Prisma Util?
 
-Prisma Util is an easy to use tool that merges multiple Prisma schema files, allows extending of models, resolves naming conflicts and provides easy access to Prisma commands and timing reports. It's mostly a plug-and-play replacement, with an easy confirguration file.
+Prisma Util is an easy to use tool that merges multiple Prisma schema files, allows extending of models, resolves naming conflicts and provides easy access to Prisma commands and timing reports. It's mostly a plug-and-play replacement, with an easy configuration file.
 
 ## How to Use?
 
